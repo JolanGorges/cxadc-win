@@ -172,6 +172,8 @@ Parameter       | PowerShell / WMI Property | Range  | Default
 `center_offset` | `CenterOffset`            | `0-255` | `0`
 `tenxfsc`       | `TenXFsc`                 | `0-2`, `10-99` (MHz), `>= 100` (Hz) | `0`
 `crystal`       | `Crystal`                 | Hz     | `28636363`
+`audsel`        | `AudSel`                  | `-1`, `0-3` | `-1`
+`latency`       | `Latency`                 | `-1`, `0-255` | `-1` (255)
 
 Device values are stored in the registry at the following location  
 `HKLM\SYSTEM\CurrentControlSet\Enum\PCI\VEN_14F1&DEV_8800&SUBSYS_XXXXXXXX&REV_XX\X&XXXXXXXX&X&XXXXXX\DeviceParameters`

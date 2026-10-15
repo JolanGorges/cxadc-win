@@ -216,6 +216,12 @@ function Set-CxadcWinConfig {
         .PARAMETER Crystal
             Crystal frequency in Hz (default 28636363), only used for TenXFsc values of 10 and above.
 
+        .PARAMETER AudSel
+            PixelView PlayTV Pro Ultracard only: output routed to the audio jack (0-3), -1 to leave the GPIOs alone.
+
+        .PARAMETER Latency
+            PCI latency timer (0-255), -1 for the default of 255.
+
         .INPUTS
             A CxDevice object can be piped to this command.
 
@@ -237,7 +243,9 @@ function Set-CxadcWinConfig {
         [boolean] $EnableSixDB,
         [int] $CenterOffset,
         [uint32] $TenXFsc,
-        [uint32] $Crystal
+        [uint32] $Crystal,
+        [int] $AudSel,
+        [int] $Latency
     )
 
     $GetConfigParams = @{
@@ -278,6 +286,14 @@ function Set-CxadcWinConfig {
 
         if ($PSBoundParameters.ContainsKey("Crystal")) {
             $Config.Crystal = $Crystal
+        }
+
+        if ($PSBoundParameters.ContainsKey("AudSel")) {
+            $Config.AudSel = $AudSel
+        }
+
+        if ($PSBoundParameters.ContainsKey("Latency")) {
+            $Config.Latency = $Latency
         }
 
         $CimInstance = Get-CimInstance @GetConfigParams -Filter ("InstanceName='{0}'" -f $Device.InstanceName.Replace("\", "\\"))

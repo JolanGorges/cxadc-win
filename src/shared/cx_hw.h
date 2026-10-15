@@ -73,6 +73,9 @@
 #define CX_VIDEO_AGC_GAIN_ADJUST_4_ADDR         0x310220
 #define CX_VIDEO_VBI_GP_COUNTER_ADDR            0x31C02C
 #define CX_VIDEO_IPB_DMA_CONTROL_ADDR           0x31C040
+#define CX_MISC_GP0_IO_ADDR                     0x350010
+#define CX_MISC_GP1_IO_ADDR                     0x350014
+#define CX_MISC_GP3_IO_ADDR                     0x35001C
 #define CX_MISC_AFECFG_ADDR                     0x35C04C
 #define CX_I2C_DATA_CONTROL_ADDR                0x368000
 

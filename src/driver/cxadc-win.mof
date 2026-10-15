@@ -29,6 +29,8 @@ class CxadcWin_Config
   [WmiDataId(5), read, write] sint32 CenterOffset;
   [WmiDataId(6), read, write] uint32 TenXFsc;
   [WmiDataId(7), read, write] uint32 Crystal;
+  [WmiDataId(8), read, write] sint32 AudSel;
+  [WmiDataId(9), read, write] sint32 Latency;
 };
 
 [WMI, Dynamic, Provider("WMIProv"), Locale("MS\\0x409"), Description("Cxadc-Win Path"), guid("{C5DE3644-CB5A-4A18-9F42-47348AC8FC68}")]

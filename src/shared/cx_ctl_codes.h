@@ -103,6 +103,25 @@
 #define CX_CTRL_CONFIG_CRYSTAL_DEFAULT          28636363
 #define CX_CTRL_CONFIG_CRYSTAL_MIN              40
 
+// audsel (PixelView PlayTV Pro Ultracard audio output select, -1 = not used)
+#define CX_IOCTL_CONFIG_AUDSEL_GET              CTL_CODE_R(0x828)
+#define CX_IOCTL_CONFIG_AUDSEL_SET              CTL_CODE_W(0x928)
+#define CX_CTRL_CONFIG_AUDSEL_REG_KEY           L"audsel"
+#define CX_CTRL_CONFIG_AUDSEL_WMI_ID            8
+#define CX_CTRL_CONFIG_AUDSEL_DEFAULT           -1
+#define CX_CTRL_CONFIG_AUDSEL_MIN               -1
+#define CX_CTRL_CONFIG_AUDSEL_MAX               3
+
+// latency (PCI latency timer, -1 = default of 255)
+#define CX_IOCTL_CONFIG_LATENCY_GET             CTL_CODE_R(0x829)
+#define CX_IOCTL_CONFIG_LATENCY_SET             CTL_CODE_W(0x929)
+#define CX_CTRL_CONFIG_LATENCY_REG_KEY          L"latency"
+#define CX_CTRL_CONFIG_LATENCY_WMI_ID           9
+#define CX_CTRL_CONFIG_LATENCY_DEFAULT          -1
+#define CX_CTRL_CONFIG_LATENCY_MIN              -1
+#define CX_CTRL_CONFIG_LATENCY_MAX              255
+#define CX_CTRL_CONFIG_LATENCY_DEFAULT_TIMER    255
+
 // memory
 #define CX_IOCTL_HW_MMAP                        CTL_CODE_R(0xA00)
 #define CX_IOCTL_HW_MUNMAP                      CTL_CODE_W(0xA01)

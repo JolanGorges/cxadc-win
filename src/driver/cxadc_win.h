@@ -38,6 +38,7 @@ NTSTATUS cx_init_queue(_In_ PDEVICE_CONTEXT dev_ctx);
 VOID cx_init_config(_Inout_ PDEVICE_CONTEXT dev_ctx);
 
 NTSTATUS cx_check_dev_info(_In_ WDFDEVICE dev);
+NTSTATUS cx_set_pci_latency(_In_ PDEVICE_CONTEXT dev_ctx, _In_ LONG latency);
 NTSTATUS cx_read_device_prop(
     _In_ PDEVICE_CONTEXT dev_ctx,
     _In_ DEVICE_REGISTRY_PROPERTY prop,

@@ -16,6 +16,7 @@
 #include "control.h"
 
 #include "cx2388x.h"
+#include "cxadc_win.h"
 #include "registry.h"
 
 _Use_decl_annotations_
@@ -166,6 +167,46 @@ NTSTATUS cx_ctrl_set_crystal(
     cx_set_tenxfsc(&dev_ctx->mmio, dev_ctx->config.tenxfsc, value);
 
     return cx_reg_set_value(dev_ctx->dev, CX_CTRL_CONFIG_CRYSTAL_REG_KEY, value);
+}
+
+_Use_decl_annotations_
+NTSTATUS cx_ctrl_set_audsel(
+    PDEVICE_CONTEXT dev_ctx,
+    LONG value
+)
+{
+    if (value < CX_CTRL_CONFIG_AUDSEL_MIN || value > CX_CTRL_CONFIG_AUDSEL_MAX)
+    {
+        TRACE_ERROR("invalid audsel %d", value);
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    TRACE_INFO("setting audsel to %d (currently %d)", value, dev_ctx->config.audsel);
+
+    InterlockedExchange(&dev_ctx->config.audsel, value);
+    cx_set_audsel(&dev_ctx->mmio, value);
+
+    return cx_reg_set_value(dev_ctx->dev, CX_CTRL_CONFIG_AUDSEL_REG_KEY, (ULONG)value);
+}
+
+_Use_decl_annotations_
+NTSTATUS cx_ctrl_set_latency(
+    PDEVICE_CONTEXT dev_ctx,
+    LONG value
+)
+{
+    if (value < CX_CTRL_CONFIG_LATENCY_MIN || value > CX_CTRL_CONFIG_LATENCY_MAX)
+    {
+        TRACE_ERROR("invalid latency %d", value);
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    TRACE_INFO("setting latency to %d (currently %d)", value, dev_ctx->config.latency);
+
+    InterlockedExchange(&dev_ctx->config.latency, value);
+    RETURN_NTSTATUS_IF_FAILED(cx_set_pci_latency(dev_ctx, value));
+
+    return cx_reg_set_value(dev_ctx->dev, CX_CTRL_CONFIG_LATENCY_REG_KEY, (ULONG)value);
 }
 
 _Use_decl_annotations_

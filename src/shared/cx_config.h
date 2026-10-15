@@ -25,6 +25,8 @@ typedef struct _DEVICE_CONFIG
     ULONG center_offset;
     ULONG tenxfsc;
     ULONG crystal;
+    LONG audsel;    // -1 = not used
+    LONG latency;   // -1 = default (255)
 } DEVICE_CONFIG, * PDEVICE_CONFIG;
 
 typedef struct _DEVICE_STATE

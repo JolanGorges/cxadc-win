@@ -140,6 +140,7 @@ VOID cx_init(
     cx_set_tenbit(&dev_ctx->mmio, dev_ctx->config.tenbit);
     cx_set_level(&dev_ctx->mmio, dev_ctx->config.level, dev_ctx->config.sixdb);
     cx_set_center_offset(&dev_ctx->mmio, dev_ctx->config.center_offset);
+    cx_set_audsel(&dev_ctx->mmio, dev_ctx->config.audsel);
 }
 
 _Use_decl_annotations_
@@ -653,6 +654,28 @@ VOID cx_set_tenxfsc(
 
     cx_write(mmio, CX_VIDEO_SAMPLE_RATE_CONVERSION_ADDR, sconv);
     cx_write(mmio, CX_VIDEO_PLL_ADDR, pll);
+}
+
+_Use_decl_annotations_
+VOID cx_set_audsel(
+    PMMIO mmio,
+    LONG audsel
+)
+{
+    // from the Linux driver:
+    // Pixelview PlayTVPro Ultracard specific
+    // select which output is redirected to audio output jack
+    // GPIO bit 3 is to enable 4052 , bit 0-1 4052's AB
+    if (audsel == -1)
+    {
+        return;
+    }
+
+    TRACE_INFO("audsel = %d", audsel & 3);
+
+    cx_write(mmio, CX_MISC_GP3_IO_ADDR, 1 << 25);   // use as 24 bit GPIO/GPOE
+    cx_write(mmio, CX_MISC_GP1_IO_ADDR, 0x0B);
+    cx_write(mmio, CX_MISC_GP0_IO_ADDR, audsel & 3);
 }
 
 _Use_decl_annotations_

@@ -180,6 +180,14 @@ VOID cx_evt_io_ctrl(
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->config.crystal, sizeof(dev_ctx->config.crystal)));
             break;
 
+        case CX_IOCTL_CONFIG_AUDSEL_GET:
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->config.audsel, sizeof(dev_ctx->config.audsel)));
+            break;
+
+        case CX_IOCTL_CONFIG_LATENCY_GET:
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->config.latency, sizeof(dev_ctx->config.latency)));
+            break;
+
         case CX_IOCTL_HW_BUS_NUMBER_GET:
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->bus_number, sizeof(dev_ctx->bus_number)));
             break;
@@ -263,6 +271,22 @@ VOID cx_evt_io_ctrl(
             ULONG value = 0;
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_get_input(req, in_len, &value, sizeof(dev_ctx->config.crystal)));
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_ctrl_set_crystal(dev_ctx, value));
+            break;
+        }
+
+        case CX_IOCTL_CONFIG_AUDSEL_SET:
+        {
+            LONG value = 0;
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_get_input(req, in_len, &value, sizeof(dev_ctx->config.audsel)));
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_ctrl_set_audsel(dev_ctx, value));
+            break;
+        }
+
+        case CX_IOCTL_CONFIG_LATENCY_SET:
+        {
+            LONG value = 0;
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_get_input(req, in_len, &value, sizeof(dev_ctx->config.latency)));
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_ctrl_set_latency(dev_ctx, value));
             break;
         }
 

@@ -37,6 +37,7 @@
 #pragma alloc_text (PAGE, cx_init_dma)
 #pragma alloc_text (PAGE, cx_init_queue)
 #pragma alloc_text (PAGE, cx_check_dev_info)
+#pragma alloc_text (PAGE, cx_set_pci_latency)
 #pragma alloc_text (PAGE, cx_read_device_prop)
 #endif
 
@@ -282,7 +283,15 @@ NTSTATUS cx_evt_device_d0_entry(
     UNREFERENCED_PARAMETER(prev_state);
     PAGED_CODE();
 
-    cx_init(cx_device_get_ctx(dev));
+    PDEVICE_CONTEXT dev_ctx = cx_device_get_ctx(dev);
+
+    // not fatal, the card works with whatever the firmware/bus driver set
+    if (!NT_SUCCESS(cx_set_pci_latency(dev_ctx, dev_ctx->config.latency)))
+    {
+        TRACE_ERROR("unable to set pci latency timer");
+    }
+
+    cx_init(dev_ctx);
 
     return STATUS_SUCCESS;
 }
@@ -452,8 +461,62 @@ VOID cx_init_config(
         .tenxfsc = cx_ctrl_normalize_tenxfsc(NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_TENXFSC_REG_KEY, &value)) ?
             value : CX_CTRL_CONFIG_TENXFSC_DEFAULT),
         .crystal = (NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_CRYSTAL_REG_KEY, &value)) && value >= CX_CTRL_CONFIG_CRYSTAL_MIN) ?
-            value : CX_CTRL_CONFIG_CRYSTAL_DEFAULT
+            value : CX_CTRL_CONFIG_CRYSTAL_DEFAULT,
+        .audsel = (NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_AUDSEL_REG_KEY, &value)) && (LONG)value <= CX_CTRL_CONFIG_AUDSEL_MAX) ?
+            (LONG)value : CX_CTRL_CONFIG_AUDSEL_DEFAULT,
+        .latency = (NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_LATENCY_REG_KEY, &value)) && (LONG)value <= CX_CTRL_CONFIG_LATENCY_MAX) ?
+            (LONG)value : CX_CTRL_CONFIG_LATENCY_DEFAULT
     };
+
+    // -1 is stored as 0xFFFFFFFF and anything else negative is treated as -1
+    if (dev_ctx->config.audsel < CX_CTRL_CONFIG_AUDSEL_MIN)
+    {
+        dev_ctx->config.audsel = CX_CTRL_CONFIG_AUDSEL_DEFAULT;
+    }
+
+    if (dev_ctx->config.latency < CX_CTRL_CONFIG_LATENCY_MIN)
+    {
+        dev_ctx->config.latency = CX_CTRL_CONFIG_LATENCY_DEFAULT;
+    }
+}
+
+_Use_decl_annotations_
+NTSTATUS cx_set_pci_latency(
+    PDEVICE_CONTEXT dev_ctx,
+    LONG latency
+)
+{
+    PAGED_CODE();
+
+    // the Linux driver sets the PCI latency timer to 255 unless told otherwise
+    UCHAR timer = (latency == -1) ? CX_CTRL_CONFIG_LATENCY_DEFAULT_TIMER : (UCHAR)latency;
+
+    BUS_INTERFACE_STANDARD bus = { 0 };
+
+    RETURN_NTSTATUS_IF_FAILED(WdfFdoQueryForInterface(
+        dev_ctx->dev,
+        &GUID_BUS_INTERFACE_STANDARD,
+        (PINTERFACE)&bus,
+        sizeof(BUS_INTERFACE_STANDARD),
+        1,
+        NULL));
+
+    ULONG written = bus.SetBusData(bus.Context, PCI_WHICHSPACE_CONFIG, &timer, FIELD_OFFSET(PCI_COMMON_CONFIG, LatencyTimer), sizeof(timer));
+
+    UCHAR readback = 0;
+    bus.GetBusData(bus.Context, PCI_WHICHSPACE_CONFIG, &readback, FIELD_OFFSET(PCI_COMMON_CONFIG, LatencyTimer), sizeof(readback));
+
+    bus.InterfaceDereference(bus.Context);
+
+    if (written != sizeof(timer))
+    {
+        TRACE_ERROR("SetBusData failed to set pci latency timer");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    TRACE_INFO("pci latency timer set to %d (read back %d)", timer, readback);
+
+    return STATUS_SUCCESS;
 }
 
 _Use_decl_annotations_
@@ -477,7 +540,10 @@ NTSTATUS cx_check_dev_info(
     PCI_COMMON_CONFIG pci_config = { 0 };
 
     // read first 64 bytes from pci config
-    if (bus.GetBusData(bus.Context, PCI_WHICHSPACE_CONFIG, &pci_config, 0, PCI_COMMON_HDR_LENGTH) != PCI_COMMON_HDR_LENGTH)
+    ULONG read = bus.GetBusData(bus.Context, PCI_WHICHSPACE_CONFIG, &pci_config, 0, PCI_COMMON_HDR_LENGTH);
+    bus.InterfaceDereference(bus.Context);
+
+    if (read != PCI_COMMON_HDR_LENGTH)
     {
         TRACE_ERROR("GetBusData failed");
         return STATUS_UNSUCCESSFUL;

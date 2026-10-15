@@ -26,9 +26,6 @@
     <https://www.gnu.org/licenses/>.
 #>
 
-#Requires -Version 7.4
-#Requires -PSEdition Core
-
 class CxDevice {
     [string] $Path
     [string] $InstanceName

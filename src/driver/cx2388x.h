@@ -31,6 +31,7 @@ VOID cx_set_vmux(_Inout_ PMMIO mmio, _In_ ULONG vmux);
 VOID cx_set_level(_Inout_ PMMIO mmio, _In_ ULONG level, _In_ BOOLEAN enable_sixdb);
 VOID cx_set_tenbit(_Inout_ PMMIO mmio, _In_ BOOLEAN enable_tenbit);
 VOID cx_set_center_offset(_Inout_ PMMIO mmio, _In_ ULONG center_offset);
+VOID cx_set_tenxfsc(_Inout_ PMMIO mmio, _In_ ULONG tenxfsc, _In_ ULONG crystal);
 BOOLEAN cx_get_ouflow_state(_Inout_ PMMIO mmio);
 VOID cx_reset_ouflow_state(_Inout_ PMMIO mmio);
 

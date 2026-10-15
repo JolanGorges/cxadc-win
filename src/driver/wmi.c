@@ -209,6 +209,8 @@ NTSTATUS cx_wmi_config_set(
     RETURN_NTSTATUS_IF_FAILED(cx_ctrl_set_tenbit(dev_ctx, config.tenbit));
     RETURN_NTSTATUS_IF_FAILED(cx_ctrl_set_sixdb(dev_ctx, config.sixdb));
     RETURN_NTSTATUS_IF_FAILED(cx_ctrl_set_center_offset(dev_ctx, config.center_offset));
+    RETURN_NTSTATUS_IF_FAILED(cx_ctrl_set_crystal(dev_ctx, config.crystal));
+    RETURN_NTSTATUS_IF_FAILED(cx_ctrl_set_tenxfsc(dev_ctx, config.tenxfsc));
 
     return STATUS_SUCCESS;
 }
@@ -246,6 +248,12 @@ NTSTATUS cx_wmi_config_set_item(
 
         case CX_CTRL_CONFIG_CENTER_OFFSET_WMI_ID:
             return cx_ctrl_set_center_offset(dev_ctx, value);
+
+        case CX_CTRL_CONFIG_TENXFSC_WMI_ID:
+            return cx_ctrl_set_tenxfsc(dev_ctx, value);
+
+        case CX_CTRL_CONFIG_CRYSTAL_WMI_ID:
+            return cx_ctrl_set_crystal(dev_ctx, value);
 
         default:
             return STATUS_WMI_ITEMID_NOT_FOUND;

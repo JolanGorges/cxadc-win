@@ -8,7 +8,7 @@ delivers the sample rate you expect.
 
 ```
 PS> .\levelmon.exe 0
-\\.\cxadc0  vmux=1 level=0 sixdb=off tenbit=off center_offset=0  (9 MiB per line)
+\\.\cxadc0  vmux=1 level=0 sixdb=off tenbit=off center_offset=0 tenxfsc=0 crystal=28636363  (9 MiB per line)
 lo |0| [ 50.391%] (  0.000%) center +0.59% hi ( 50.588%) [ 50.781%] |0|  nsamp 9998336  rate 28.98  ouflow 0
 ```
 

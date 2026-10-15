@@ -129,9 +129,9 @@ int main(int argc, char* argv[])
     const unsigned minv = 1;
     const unsigned center = maxv / 2;
 
-    printf("%s  vmux=%lu level=%lu sixdb=%s tenbit=%s center_offset=%lu  (%zu MiB per line)\n",
+    printf("%s  vmux=%lu level=%lu sixdb=%s tenbit=%s center_offset=%lu tenxfsc=%lu crystal=%lu  (%zu MiB per line)\n",
         device_path, cfg.vmux, cfg.level, cfg.sixdb ? "on" : "off",
-        tenbit ? "on" : "off", cfg.center_offset, chunk_bytes >> 20);
+        tenbit ? "on" : "off", cfg.center_offset, cfg.tenxfsc, cfg.crystal, chunk_bytes >> 20);
     fflush(stdout);
 
     uint8_t* buf = (uint8_t*)malloc(chunk_bytes);

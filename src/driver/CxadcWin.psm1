@@ -208,6 +208,14 @@ function Set-CxadcWinConfig {
         .PARAMETER CenterOffset
             DC offset for centering RF signal.
 
+        .PARAMETER TenXFsc
+            Sample rate. 0 = crystal frequency (28.6 MHz on an unmodified card), 1 = 1.25x crystal (35.8 MHz),
+            2 = ~1.4x crystal (40 MHz). 10-99 is a rate in MHz and larger values a rate in Hz, both computed
+            from Crystal. Same meaning as tenxfsc in the Linux driver.
+
+        .PARAMETER Crystal
+            Crystal frequency in Hz (default 28636363), only used for TenXFsc values of 10 and above.
+
         .INPUTS
             A CxDevice object can be piped to this command.
 
@@ -227,7 +235,9 @@ function Set-CxadcWinConfig {
         [int] $Level,
         [boolean] $EnableTenbit,
         [boolean] $EnableSixDB,
-        [int] $CenterOffset
+        [int] $CenterOffset,
+        [uint32] $TenXFsc,
+        [uint32] $Crystal
     )
 
     $GetConfigParams = @{
@@ -260,6 +270,14 @@ function Set-CxadcWinConfig {
 
         if ($PSBoundParameters.ContainsKey("CenterOffset")) {
             $Config.CenterOffset = $CenterOffset
+        }
+
+        if ($PSBoundParameters.ContainsKey("TenXFsc")) {
+            $Config.TenXFsc = $TenXFsc
+        }
+
+        if ($PSBoundParameters.ContainsKey("Crystal")) {
+            $Config.Crystal = $Crystal
         }
 
         $CimInstance = Get-CimInstance @GetConfigParams -Filter ("InstanceName='{0}'" -f $Device.InstanceName.Replace("\", "\\"))

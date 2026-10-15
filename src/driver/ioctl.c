@@ -172,6 +172,14 @@ VOID cx_evt_io_ctrl(
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->config.center_offset, sizeof(dev_ctx->config.center_offset)));
             break;
 
+        case CX_IOCTL_CONFIG_TENXFSC_GET:
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->config.tenxfsc, sizeof(dev_ctx->config.tenxfsc)));
+            break;
+
+        case CX_IOCTL_CONFIG_CRYSTAL_GET:
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->config.crystal, sizeof(dev_ctx->config.crystal)));
+            break;
+
         case CX_IOCTL_HW_BUS_NUMBER_GET:
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_set_output(req, out_len, &dev_ctx->bus_number, sizeof(dev_ctx->bus_number)));
             break;
@@ -239,6 +247,22 @@ VOID cx_evt_io_ctrl(
             ULONG value = 0;
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_get_input(req, in_len, &value, sizeof(dev_ctx->config.center_offset)));
             RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_ctrl_set_center_offset(dev_ctx, value));
+            break;
+        }
+
+        case CX_IOCTL_CONFIG_TENXFSC_SET:
+        {
+            ULONG value = 0;
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_get_input(req, in_len, &value, sizeof(dev_ctx->config.tenxfsc)));
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_ctrl_set_tenxfsc(dev_ctx, value));
+            break;
+        }
+
+        case CX_IOCTL_CONFIG_CRYSTAL_SET:
+        {
+            ULONG value = 0;
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_evt_get_input(req, in_len, &value, sizeof(dev_ctx->config.crystal)));
+            RETURN_COMPLETE_WDFREQUEST_IF_FAILED(req, cx_ctrl_set_crystal(dev_ctx, value));
             break;
         }
 

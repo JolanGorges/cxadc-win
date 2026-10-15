@@ -86,6 +86,23 @@
 #define CX_CTRL_CONFIG_CENTER_OFFSET_MIN        0
 #define CX_CTRL_CONFIG_CENTER_OFFSET_MAX        255
 
+// tenxfsc (sample rate)
+// 0-2 select a preset relative to the crystal frequency, 10-99 are MHz
+// and anything larger is Hz, computed from crystal (as in the Linux driver)
+#define CX_IOCTL_CONFIG_TENXFSC_GET             CTL_CODE_R(0x826)
+#define CX_IOCTL_CONFIG_TENXFSC_SET             CTL_CODE_W(0x926)
+#define CX_CTRL_CONFIG_TENXFSC_REG_KEY          L"tenxfsc"
+#define CX_CTRL_CONFIG_TENXFSC_WMI_ID           6
+#define CX_CTRL_CONFIG_TENXFSC_DEFAULT          0
+
+// crystal (Hz, only used for tenxfsc >= 10)
+#define CX_IOCTL_CONFIG_CRYSTAL_GET             CTL_CODE_R(0x827)
+#define CX_IOCTL_CONFIG_CRYSTAL_SET             CTL_CODE_W(0x927)
+#define CX_CTRL_CONFIG_CRYSTAL_REG_KEY          L"crystal"
+#define CX_CTRL_CONFIG_CRYSTAL_WMI_ID           7
+#define CX_CTRL_CONFIG_CRYSTAL_DEFAULT          28636363
+#define CX_CTRL_CONFIG_CRYSTAL_MIN              40
+
 // memory
 #define CX_IOCTL_HW_MMAP                        CTL_CODE_R(0xA00)
 #define CX_IOCTL_HW_MUNMAP                      CTL_CODE_W(0xA01)

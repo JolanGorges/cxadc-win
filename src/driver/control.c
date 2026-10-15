@@ -119,6 +119,56 @@ NTSTATUS cx_ctrl_set_center_offset(
 }
 
 _Use_decl_annotations_
+ULONG cx_ctrl_normalize_tenxfsc(
+    ULONG value
+)
+{
+    // as in the Linux driver, 10-99 means MHz
+    if (value >= 10 && value < 100)
+    {
+        return value * 1000000;
+    }
+
+    return value;
+}
+
+_Use_decl_annotations_
+NTSTATUS cx_ctrl_set_tenxfsc(
+    PDEVICE_CONTEXT dev_ctx,
+    ULONG value
+)
+{
+    value = cx_ctrl_normalize_tenxfsc(value);
+
+    TRACE_INFO("setting tenxfsc to %d (currently %d)", value, dev_ctx->config.tenxfsc);
+
+    InterlockedExchange((PLONG)&dev_ctx->config.tenxfsc, value);
+    cx_set_tenxfsc(&dev_ctx->mmio, value, dev_ctx->config.crystal);
+
+    return cx_reg_set_value(dev_ctx->dev, CX_CTRL_CONFIG_TENXFSC_REG_KEY, value);
+}
+
+_Use_decl_annotations_
+NTSTATUS cx_ctrl_set_crystal(
+    PDEVICE_CONTEXT dev_ctx,
+    ULONG value
+)
+{
+    if (value < CX_CTRL_CONFIG_CRYSTAL_MIN)
+    {
+        TRACE_ERROR("invalid crystal %d", value);
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    TRACE_INFO("setting crystal to %d (currently %d)", value, dev_ctx->config.crystal);
+
+    InterlockedExchange((PLONG)&dev_ctx->config.crystal, value);
+    cx_set_tenxfsc(&dev_ctx->mmio, dev_ctx->config.tenxfsc, value);
+
+    return cx_reg_set_value(dev_ctx->dev, CX_CTRL_CONFIG_CRYSTAL_REG_KEY, value);
+}
+
+_Use_decl_annotations_
 NTSTATUS cx_ctrl_get_register(
     PDEVICE_CONTEXT dev_ctx,
     ULONG address,

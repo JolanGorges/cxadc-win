@@ -66,18 +66,8 @@ VOID cx_init(
             .dac_pwrdn = 1
         }.dword);
 
-    // set SRC to 8xfsc
-    cx_write(&dev_ctx->mmio, CX_VIDEO_SAMPLE_RATE_CONVERSION_ADDR,
-        (CX_VIDEO_SAMPLE_RATE_CONVERSION){
-            .src_reg_val = 0x20000
-        }.dword);
-
-    // set PLL to 1:1
-    cx_write(&dev_ctx->mmio, CX_VIDEO_PLL_ADDR,
-        (CX_VIDEO_PLL){
-            .pll_int = 0x10,
-            .pll_dds = 1
-        }.dword);
+    // set SRC and PLL for the configured sample rate
+    cx_set_tenxfsc(&dev_ctx->mmio, dev_ctx->config.tenxfsc, dev_ctx->config.crystal);
 
     // set vbi agc
     // set back porch sample delay & sync sample delay to max
@@ -595,6 +585,74 @@ VOID cx_set_center_offset(
             .acc_min = 0xFF,
             .low_stip_th = 0x1E48
         }.dword);
+}
+
+_Use_decl_annotations_
+VOID cx_set_tenxfsc(
+    PMMIO mmio,
+    ULONG tenxfsc,
+    ULONG crystal
+)
+{
+    // values and comments are from the Linux driver (cxadc_char_open)
+    ULONG sconv;
+    ULONG pll;
+
+    if (tenxfsc < 10)
+    {
+        switch (tenxfsc)
+        {
+            case 1:
+                // clock speed equal to 1.25 x crystal speed, unmodified card = 35.8 mhz
+                sconv = 131072 * 4 / 5; // set SRC to 1.25x/10fsc
+                pll = 0x01400000;       // set PLL to 1.25x/10fsc
+                break;
+
+            case 2:
+                // clock speed equal to ~1.4 x crystal speed, unmodified card = 40 mhz
+                sconv = 93835;          // 131072 * 0.715909072483
+                pll = 0x0165965A;       // 40000000.1406459
+                break;
+
+            case 0:
+            default:
+                // clock speed equal to crystal speed, unmodified card = 28.6 mhz
+                // (if someone sets value out of range, default to crystal speed)
+                sconv = 131072;         // set SRC to 8xfsc
+                pll = 0x11000000;       // set PLL to 1:1
+                break;
+        }
+    }
+    else
+    {
+        // tenxfsc is a sample rate in Hz, derive the PLL from the crystal frequency
+        // always use PLL_PRE of 5 (=64)
+        LONG step = (LONG)(crystal / 40);
+        LONG pll_int = (LONG)(tenxfsc / (ULONG)step);
+        LONGLONG long_tenxfsc = (LONGLONG)tenxfsc * 1000000;
+        LONGLONG long_pll_both = long_tenxfsc / step;
+        LONGLONG long_pll_int = (LONGLONG)pll_int * 1000000;
+        LONG pll_frac = (LONG)(((long_pll_both - long_pll_int) * 1048576) / 1000000);
+        LONGLONG pll_fin = ((LONGLONG)(pll_int + 64) * 1048576) + pll_frac;
+
+        if (pll_fin < 81788928)
+        {
+            pll_fin = 81788928;     // 81788928 lowest possible value
+        }
+
+        if (pll_fin > 119537664)
+        {
+            pll_fin = 119537664;    // 133169152 is highest possible value with PLL_PRE = 5 but above 119537664 may crash
+        }
+
+        pll = (ULONG)pll_fin;
+        sconv = (ULONG)(((LONGLONG)131072 * crystal) / tenxfsc);
+    }
+
+    TRACE_INFO("tenxfsc %d crystal %d: sconv %08X pll %08X", tenxfsc, crystal, sconv, pll);
+
+    cx_write(mmio, CX_VIDEO_SAMPLE_RATE_CONVERSION_ADDR, sconv);
+    cx_write(mmio, CX_VIDEO_PLL_ADDR, pll);
 }
 
 _Use_decl_annotations_

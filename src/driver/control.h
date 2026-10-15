@@ -41,5 +41,8 @@ NTSTATUS cx_ctrl_set_level(_In_ PDEVICE_CONTEXT dev_ctx, _In_ ULONG value);
 NTSTATUS cx_ctrl_set_tenbit(_In_ PDEVICE_CONTEXT dev_ctx, _In_ BOOLEAN value);
 NTSTATUS cx_ctrl_set_sixdb(_In_ PDEVICE_CONTEXT dev_ctx, _In_ BOOLEAN value);
 NTSTATUS cx_ctrl_set_center_offset(_In_ PDEVICE_CONTEXT dev_ctx, _In_ ULONG value);
+ULONG cx_ctrl_normalize_tenxfsc(_In_ ULONG value);
+NTSTATUS cx_ctrl_set_tenxfsc(_In_ PDEVICE_CONTEXT dev_ctx, _In_ ULONG value);
+NTSTATUS cx_ctrl_set_crystal(_In_ PDEVICE_CONTEXT dev_ctx, _In_ ULONG value);
 NTSTATUS cx_ctrl_get_register(_In_ PDEVICE_CONTEXT dev_ctx, _In_ ULONG address, _Out_ PULONG value);
 NTSTATUS cx_ctrl_set_register(_In_ PDEVICE_CONTEXT dev_ctx, _In_ PSET_REGISTER_DATA data);

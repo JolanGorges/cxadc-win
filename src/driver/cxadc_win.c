@@ -16,6 +16,7 @@
 #include "cxadc_win.h"
 
 #include "cx2388x.h"
+#include "control.h"
 #include "registry.h"
 #include "wmi.h"
 #include "ioctl.h"
@@ -447,7 +448,11 @@ VOID cx_init_config(
         .sixdb = (NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_SIXDB_REG_KEY, &value)) ?
             value : CX_CTRL_CONFIG_SIXDB_DEFAULT) ? TRUE : FALSE,
         .center_offset = NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_CENTER_OFFSET_REG_KEY, &value)) ?
-            value : CX_CTRL_CONFIG_CENTER_OFFSET_DEFAULT
+            value : CX_CTRL_CONFIG_CENTER_OFFSET_DEFAULT,
+        .tenxfsc = cx_ctrl_normalize_tenxfsc(NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_TENXFSC_REG_KEY, &value)) ?
+            value : CX_CTRL_CONFIG_TENXFSC_DEFAULT),
+        .crystal = (NT_SUCCESS(cx_reg_get_value(dev_ctx->dev, CX_CTRL_CONFIG_CRYSTAL_REG_KEY, &value)) && value >= CX_CTRL_CONFIG_CRYSTAL_MIN) ?
+            value : CX_CTRL_CONFIG_CRYSTAL_DEFAULT
     };
 }
 

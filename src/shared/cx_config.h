@@ -23,6 +23,8 @@ typedef struct _DEVICE_CONFIG
     BOOLEAN tenbit;
     BOOLEAN sixdb;
     ULONG center_offset;
+    ULONG tenxfsc;
+    ULONG crystal;
 } DEVICE_CONFIG, * PDEVICE_CONFIG;
 
 typedef struct _DEVICE_STATE

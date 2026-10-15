@@ -95,6 +95,20 @@
 .PARAMETER UseSox
     Use SoX for resampling instead of FFmpeg.
 
+.PARAMETER Tenbit
+    Capture 16-bit samples (driver 10-bit mode). The driver's EnableTenbit flag is switched on
+    for the selected card(s) if needed. Remember that the sample rate halves in this mode
+    (14318 for a stock 28.6 MHz crystal, 20000 for a 40 MHz card), so pass the matching
+    -VideoBaseRate / -HifiBaseRate. Raw files get the .u16 extension, FLAC files are 16-bit.
+
+.PARAMETER Duration
+    Stop the capture automatically after this many seconds (0 = run until 'q' is pressed).
+    Also makes the script usable from a non-interactive shell (SSH, scheduled task).
+
+.PARAMETER StopOnOverflow
+    Stop the capture as soon as the driver reports a DMA over/underflow or the capture-server
+    reports a ring buffer overflow. Without this switch a red warning is printed and the capture continues.
+
 .EXAMPLE
     PS> .\LocalCapture.ps1 -Name TestCapture -Video 0 -Baseband
 
@@ -169,7 +183,11 @@ param(
 
     [int] $FlacThreadCount = 4,
     [int] $FFmpegThreadCount = 4,
-    [switch] $UseSox = $false
+    [switch] $UseSox = $false,
+
+    [switch] $Tenbit = $false,
+    [switch] $StopOnOverflow = $false,
+    [int] $Duration = 0
 )
 
 enum DeviceType {
@@ -200,6 +218,9 @@ class CxDeviceData : DeviceData {
     [ValidateNotNullOrEmpty()][boolean] $EnableResampling
     [ValidateNotNullOrEmpty()][int] $ResampleRate
     [ValidateNotNullOrEmpty()][int] $FlacThreadCount
+    [boolean] $Tenbit
+    [string] $InstanceName
+    [int] $DriverOverflows
 }
 
 class BasebandDeviceData : DeviceData {
@@ -328,7 +349,8 @@ Class CxCaptureServer {
             "--url", ($this.BaseUrl + "/cxadc?" + $Device.Index),
             "-o"
         )
-        $CurlOut = ($Device.FilePrefix + ".u8")
+        $RawExt = ($Device.Tenbit) ? ".u16" : ".u8"
+        $CurlOut = ($Device.FilePrefix + $RawExt)
         $ResamplerCommand = ""
         $FlacCommand = ""
         $OutputFiles = @()
@@ -341,7 +363,7 @@ Class CxCaptureServer {
                 "|", "&", $this.BinaryPaths.Flac.EscapedPath, "-s", "-f",
                 "-j", $Device.FlacThreadCount
                 ("-" + $Device.CompressionLevel), "-b", 65535, "--lax",
-                ("--sample-rate=" + $FlacRate), "--channels=1", "--bps=8", "--sign=unsigned", "--endian=little",
+                ("--sample-rate=" + $FlacRate), "--channels=1", ("--bps=" + (($Device.Tenbit) ? 16 : 8)), "--sign=unsigned", "--endian=little",
                 "-",
                 "-o", $FlacOut
             )
@@ -350,16 +372,16 @@ Class CxCaptureServer {
 
         if ($Device.EnableResampling) {
             $CurlOut = "-"
-            $SoxOut = $FlacCommand -ne "" ? "-" : ($Device.FilePrefix + ".u8")
+            $SoxOut = $FlacCommand -ne "" ? "-" : ($Device.FilePrefix + $RawExt)
             $OutputFiles += $SoxOut
 
             if ($Device.UseSox) {
                 $ResamplerCommand = @(
                     "|", "&", $this.BinaryPaths.Sox.EscapedPath,
                     "-D",
-                    "-t", "raw", "-r", $Device.Rate, "-b", 8, "-c", 1, "-L", "-e", "unsigned-integer",
+                    "-t", "raw", "-r", $Device.Rate, "-b", (($Device.Tenbit) ? 16 : 8), "-c", 1, "-L", "-e", "unsigned-integer",
                     "-",
-                    "-t", "raw", "-b", 8, "-c", 1, "-L", "-e", "unsigned-integer",
+                    "-t", "raw", "-b", (($Device.Tenbit) ? 16 : 8), "-c", 1, "-L", "-e", "unsigned-integer",
                     $SoxOut, "rate", "-l", $Device.ResampleRate
                 )
             } else {
@@ -368,10 +390,10 @@ Class CxCaptureServer {
                     "-hide_banner", "-y", "-loglevel", "error",
                     "-threads", $Device.FFmpegThreadCount,
                     "-thread_queue_size", 1024,
-                    "-ar", $Device.Rate, "-f", "u8",
+                    "-ar", $Device.Rate, "-f", (($Device.Tenbit) ? "u16le" : "u8"),
                     "-i", "-",
-                    "-filter_complex", ("aresample=resampler=soxr:precision=15,aformat=sample_fmts=u8:sample_rates=" + $Device.ResampleRate),
-                    "-f", "u8", $SoxOut
+                    "-filter_complex", ("aresample=resampler=soxr:precision=15,aformat=sample_fmts=" + (($Device.Tenbit) ? "s16" : "u8") + ":sample_rates=" + $Device.ResampleRate),
+                    "-f", (($Device.Tenbit) ? "u16le" : "u8"), $SoxOut
                 )
             }
         }
@@ -468,6 +490,7 @@ if ($PSBoundParameters.ContainsKey("Video")) {
         FlacThreadCount = $FlacThreadCount
         FFmpegThreadCount = $FFmpegThreadCount
         UseSox = $UseSox
+        Tenbit = $Tenbit
     }
 }
 
@@ -485,6 +508,7 @@ if ($PSBoundParameters.ContainsKey("Hifi")) {
         FlacThreadCount = $FlacThreadCount
         FFmpegThreadCount = $FFmpegThreadCount
         UseSox = $UseSox
+        Tenbit = $Tenbit
     }
 }
 
@@ -557,6 +581,55 @@ try {
 $SocketPath = [EscapedPath]::new((Join-Path -Path (Get-Location).Path -ChildPath "\.capture-server.sock"))
 $CxCaptureServer = [CxCaptureServer]::new($SocketPath, $BinaryPaths)
 
+# --- cxadc-win driver access (WMI) ---------------------------------------------------
+function Get-CxDriverInstance([int] $Index) {
+    $Path = ("\\.\cxadc" + $Index)
+    $Inst = Get-CimInstance -Namespace root/WMI -ClassName CxadcWin_Path -Filter ("Path='{0}'" -f $Path.Replace("\", "\\")) -ErrorAction SilentlyContinue
+    if ($null -eq $Inst) {
+        throw ("device " + $Path + " not found (is the cxadc-win driver loaded?)")
+    }
+    return $Inst.InstanceName
+}
+
+function Get-CxDriverState([string] $InstanceName) {
+    Get-CimInstance -Namespace root/WMI -ClassName CxadcWin_State -Filter ("InstanceName='{0}'" -f $InstanceName.Replace("\", "\\"))
+}
+
+function Get-CxDriverConfig([string] $InstanceName) {
+    Get-CimInstance -Namespace root/WMI -ClassName CxadcWin_Config -Filter ("InstanceName='{0}'" -f $InstanceName.Replace("\", "\\"))
+}
+
+$CxDevices = @($Devices | Where-Object { $_ -is [CxDeviceData] })
+
+try {
+    ForEach ($Device in $CxDevices) {
+        $Device.InstanceName = Get-CxDriverInstance $Device.Index
+        $Config = Get-CxDriverConfig $Device.InstanceName
+
+        if ($Tenbit -and -not $Config.EnableTenbit) {
+            Write-Host ("Enabling 10-bit (16-bit sample) mode on \\.\cxadc{0}" -f $Device.Index)
+            $null = Set-CimInstance -CimInstance $Config -Property @{ EnableTenbit = $true } -PassThru
+            $Config = Get-CxDriverConfig $Device.InstanceName
+        }
+
+        if ($Config.EnableTenbit -and -not $Tenbit) {
+            Write-Warning ("\\.\cxadc{0} is in 10-bit mode (driver EnableTenbit=1): capturing 16-bit samples. Pass -Tenbit to acknowledge, or run Set-CxadcWinConfig -Path \\.\cxadc{0} -EnableTenbit 0 for 8-bit." -f $Device.Index)
+        }
+
+        $Device.Tenbit = [bool] $Config.EnableTenbit
+
+        if ($Device.Tenbit -and $Device.Rate -gt 20000 -and ($Device.EnableCompression -or $Device.EnableResampling)) {
+            Write-Warning ("\\.\cxadc{0}: 10-bit mode halves the sample rate (14318 for a stock 28.6 MHz crystal, 20000 for 40 MHz) but the base rate is set to {1}. Check -VideoBaseRate / -HifiBaseRate." -f $Device.Index, $Device.Rate)
+        }
+
+        $null = Invoke-CimMethod -InputObject (Get-CxDriverState $Device.InstanceName) -MethodName ResetOverUnderflowCount
+        $Device.DriverOverflows = 0
+    }
+} catch {
+    Write-Error $_
+    exit
+}
+
 try {
     $CxCaptureServer.StartLocalServer()
     Start-Sleep -Milliseconds 1000
@@ -584,6 +657,8 @@ try {
 
     $RunTimer = [Diagnostics.Stopwatch]::StartNew()
     $IsStopping = $false
+    $LastServerOverflows = 0
+    $StoppedOnOverflow = $false
     $ProgressWidth = 120
     $PSStyle.Progress.View = "Minimal"
     $PSStyle.Progress.Style = "`e[38;5;97m"
@@ -594,7 +669,7 @@ try {
         Write-Warning "resampling may result in dropped samples."
     }
 
-    Write-Host ("Starting `"" + $Name + "`" capture, press 'q' to stop")
+    Write-Host ("Starting `"" + $Name + "`" capture, press 'q' to stop" + (($Duration -gt 0) ? (" (auto-stop after {0} s)" -f $Duration) : ""))
 
     while ($True) {
         ForEach ($Job in $CxCaptureServer.CaptureJobs) {
@@ -604,7 +679,14 @@ try {
             }
         }
 
-        if ([Console]::KeyAvailable -and [Console]::ReadKey($true).Key -eq "q") {
+        $KeyPressed = $false
+        try {
+            $KeyPressed = ([Console]::KeyAvailable -and [Console]::ReadKey($true).Key -eq "q")
+        } catch {
+            # no console / redirected input (e.g. SSH): only -Duration can stop us
+        }
+
+        if ($KeyPressed -or ($Duration -gt 0 -and $RunTimer.Elapsed.TotalSeconds -ge $Duration)) {
             $IsStopping = $true
             break
         }
@@ -615,16 +697,49 @@ try {
             continue
         }
 
+        # overflow watch: capture-server ring buffer + driver DMA counters
+        $ServerOverflows = [int] $CxCaptureServer.GetOverflows()
+        $DriverOverflows = 0
+        $OverflowAlarm = $false
+
+        if ($ServerOverflows -gt $LastServerOverflows) {
+            Write-Host ("[{0:HH:mm:ss}] capture-server ring buffer overflow ({1} total). Samples were dropped, the disk/encoder is not keeping up." -f (Get-Date), $ServerOverflows) -ForegroundColor Red
+            $LastServerOverflows = $ServerOverflows
+            $OverflowAlarm = $true
+        }
+
+        ForEach ($Device in $CxDevices) {
+            $Count = [int] (Get-CxDriverState $Device.InstanceName).OverUnderflowCount
+            $DriverOverflows += $Count
+
+            if ($Count -gt $Device.DriverOverflows) {
+                Write-Host ("[{0:HH:mm:ss}] \\.\cxadc{1} DMA over/underflow reported by the driver ({2} total). Samples were dropped." -f (Get-Date), $Device.Index, $Count) -ForegroundColor Red
+                $Device.DriverOverflows = $Count
+                $OverflowAlarm = $true
+            }
+        }
+
+        if ($OverflowAlarm) {
+            try { [Console]::Beep(1000, 200) } catch { }
+
+            if ($StopOnOverflow) {
+                Write-Host "Stopping capture (-StopOnOverflow)." -ForegroundColor Red
+                $IsStopping = $true
+                $StoppedOnOverflow = $true
+                break
+            }
+        }
+
         # print capture "progress"
-        $Overflows = ("{0} overflows" -f $CxCaptureServer.GetOverflows()).PadRight(20)
-        $Duration = ("{0,2} hour(s) {1,2} minute(s) {2,2} second(s)" -f $RunTimer.Elapsed.Hours, $RunTimer.Elapsed.Minutes, $RunTimer.Elapsed.Seconds)
-        $StatusString = "{0}{1}" -f $Overflows, $Duration
+        $Overflows = ("{0} srv / {1} drv ovf" -f $ServerOverflows, $DriverOverflows).PadRight(20)
+        $ElapsedString = ("{0,2} hour(s) {1,2} minute(s) {2,2} second(s)" -f $RunTimer.Elapsed.Hours, $RunTimer.Elapsed.Minutes, $RunTimer.Elapsed.Seconds)
+        $StatusString = "{0}{1}" -f $Overflows, $ElapsedString
         $OutputFileParentProgressParams = @{
                 Id = 0
                 Activity = "Capturing...".PadRight(57)
                 Status = $StatusString.PadLeft(57)
         }
-        Write-Progress @OutputFileParentProgressParams
+        try { Write-Progress @OutputFileParentProgressParams } catch { }
 
         $ProgressId = 1
 
@@ -678,7 +793,7 @@ try {
                     Status = $StatusString
                 }
 
-                Write-Progress @OutputFileProgressParams
+                try { Write-Progress @OutputFileProgressParams } catch { }
                 $ProgressId += 1
             }
         }
@@ -696,14 +811,23 @@ catch {
     Write-Error $_
 }
 finally {
-    0..5 | ForEach-Object { Write-Progress -Id $_ -Completed } # shouldn't be more than 5
+    0..5 | ForEach-Object { try { Write-Progress -Id $_ -Completed } catch { } } # shouldn't be more than 5
     Write-Host "Waiting for writes to finish..."
     
     try {
-        $Overflows = $CxCaptureServer.StopCapture()
+        $Overflows = [int] $CxCaptureServer.StopCapture()
+        $DriverTotal = 0
 
-        if ($Overflows -gt 0) {
-            Write-Warning "capture stopped with " + $Overflows + " overflows"
+        ForEach ($Device in $CxDevices) {
+            if ($Device.InstanceName) {
+                $DriverTotal += [int] (Get-CxDriverState $Device.InstanceName).OverUnderflowCount
+            }
+        }
+
+        if ($Overflows -gt 0 -or $DriverTotal -gt 0) {
+            Write-Warning ("capture stopped with {0} capture-server overflow(s) and {1} driver DMA over/underflow(s). Samples were dropped, consider re-capturing." -f $Overflows, $DriverTotal)
+        } else {
+            Write-Host "No overflows reported by capture-server or driver." -ForegroundColor Green
         }
     }
     catch {

@@ -9,7 +9,6 @@ delivers the sample rate you expect.
 ```
 PS> .\levelmon.exe 0
 \\.\cxadc0  vmux=1 level=0 sixdb=off tenbit=off center_offset=0  (9 MiB per line)
-draining DMA ring buffer... done
 lo |0| [ 50.391%] (  0.000%) center +0.59% hi ( 50.588%) [ 50.781%] |0|  nsamp 9998336  rate 28.98  ouflow 0
 ```
 
@@ -27,14 +26,6 @@ DC offset relative to mid-scale, average of the samples above centre, maximum, c
 samples in the line, measured rate in MS/s, driver over/underflow counter. `CLIPPING` is appended
 when either clip counter is non-zero. In 10-bit mode (`EnableTenbit`) the 16-bit samples are
 scaled to 10 bits before the statistics, as the Linux tool does.
-
-## Why it drains the ring first
-
-cxadc-win keeps the DMA engine running once any reader has started it, and a new reader is handed
-everything still in the 64 MiB ring. If the bit depth was changed in between, that data is in the
-wrong format. levelmon therefore discards one full ring (about 2.3 s at 28.6 MS/s) before printing.
-Captures made with `capture-server` / `LocalCapture.ps1` receive the same stale prefix at the start
-of every file (visible as a ~65 MB `capture_stream_first_send` in the server log).
 
 ## Building
 

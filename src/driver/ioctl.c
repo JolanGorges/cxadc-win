@@ -37,8 +37,10 @@ VOID cx_evt_file_create(
 
     *file_ctx = (FILE_CONTEXT){
         .read_offset = 0,
+        .initial_page = 0,
         .ptr = NULL,
-        .non_blocking = FALSE
+        .non_blocking = FALSE,
+        .is_reader = FALSE
     };
 
     WdfRequestComplete(req, STATUS_SUCCESS);
@@ -54,12 +56,12 @@ VOID cx_evt_file_close(
     PDEVICE_CONTEXT dev_ctx = cx_device_get_ctx(WdfFileObjectGetDevice(file_obj));
     PFILE_CONTEXT file_ctx = cx_file_get_ctx(file_obj);
 
-    if (file_ctx->read_offset)
+    if (file_ctx->is_reader)
     {
-        InterlockedDecrementSizeT(&dev_ctx->state.reader_count);
+        file_ctx->is_reader = FALSE;
 
         // stop capture if no other readers
-        if (!dev_ctx->state.reader_count)
+        if (InterlockedDecrement((PLONG)&dev_ctx->state.reader_count) == 0)
         {
             cx_stop_capture(dev_ctx);
         }
@@ -331,8 +333,13 @@ VOID cx_evt_io_read(
     }
 
     // new reader, increment count
-    if (!file_ctx->read_offset)
+    // as in the Linux driver, a reader starts at the page the DMA engine is
+    // currently filling, not at the page the capture was started at, so it
+    // never receives data that was captured before it began reading
+    if (!file_ctx->is_reader)
     {
+        file_ctx->is_reader = TRUE;
+        file_ctx->initial_page = dev_ctx->state.last_gp_cnt;
         InterlockedIncrement((PLONG)&dev_ctx->state.reader_count);
     }
 
@@ -342,7 +349,7 @@ VOID cx_evt_io_read(
     size_t count = req_len;
     size_t offset = file_ctx->read_offset;
     size_t tgt_off = 0;
-    ULONG page_no = cx_get_page_no(InterlockedCompareExchange((PLONG)&dev_ctx->state.initial_page, 0, 0), offset);
+    ULONG page_no = cx_get_page_no(file_ctx->initial_page, offset);
 
     while (count && dev_ctx->state.is_capturing)
     {
@@ -361,7 +368,7 @@ VOID cx_evt_io_read(
             tgt_off += len;
             offset += len;
 
-            page_no = cx_get_page_no(InterlockedCompareExchange((PLONG)&dev_ctx->state.initial_page, 0, 0), offset);
+            page_no = cx_get_page_no(file_ctx->initial_page, offset);
         }
 
         // check over/underflow, increment count if set

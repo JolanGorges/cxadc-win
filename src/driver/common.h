@@ -73,8 +73,10 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_CONTEXT, cx_device_get_ctx)
 typedef struct _FILE_CONTEXT
 {
     size_t read_offset;
+    ULONG initial_page;     // DMA page this reader started at
     PUINT_PTR ptr;
     BOOLEAN non_blocking;
+    BOOLEAN is_reader;      // counted in DEVICE_STATE.reader_count
 } FILE_CONTEXT, * PFILE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(FILE_CONTEXT, cx_file_get_ctx)

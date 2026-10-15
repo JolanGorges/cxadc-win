@@ -18,7 +18,6 @@
 
 #include <cx_ctl_codes.h>
 #include <cx_config.h>
-#include <cx_hw.h>
 
 static volatile LONG g_stop = 0;
 
@@ -147,26 +146,6 @@ int main(int argc, char* argv[])
 
     long line = 0;
     int rc = EXIT_SUCCESS;
-
-    // A new reader is handed whatever is already in the 64 MiB DMA ring (the driver
-    // keeps capturing between sessions), and if the bit depth was changed since
-    // then that data is in the wrong format. Drain a full ring before measuring.
-    {
-        size_t drained = 0;
-        fprintf(stderr, "draining DMA ring buffer...");
-        fflush(stderr);
-        while (!g_stop && drained < CX_VBI_BUF_SIZE) {
-            DWORD got = 0;
-            if (!ReadFile(dev, buf, (DWORD)chunk_bytes, &got, NULL)) {
-                fprintf(stderr, "\nread failed: %s\n", win32_err(GetLastError()));
-                free(buf);
-                CloseHandle(dev);
-                return EXIT_FAILURE;
-            }
-            drained += got;
-        }
-        fprintf(stderr, " done\n");
-    }
 
     while (!g_stop && (max_lines == 0 || line < max_lines)) {
         DWORD got = 0;

@@ -97,7 +97,7 @@
 
 .PARAMETER Tenbit
     Capture 16-bit samples (driver 10-bit mode). The driver's EnableTenbit flag is switched on
-    for the selected card(s) if needed. Remember that the sample rate halves in this mode
+    for the selected card(s) if needed and switched back off when the capture ends. Remember that the sample rate halves in this mode
     (14318 for a stock 28.6 MHz crystal, 20000 for a 40 MHz card), so pass the matching
     -VideoBaseRate / -HifiBaseRate. Raw files get the .u16 extension, FLAC files are 16-bit.
 
@@ -219,6 +219,7 @@ class CxDeviceData : DeviceData {
     [ValidateNotNullOrEmpty()][int] $ResampleRate
     [ValidateNotNullOrEmpty()][int] $FlacThreadCount
     [boolean] $Tenbit
+    [boolean] $RestoreTenbit
     [string] $InstanceName
     [int] $DriverOverflows
 }
@@ -610,6 +611,7 @@ try {
             Write-Host ("Enabling 10-bit (16-bit sample) mode on \\.\cxadc{0}" -f $Device.Index)
             $null = Set-CimInstance -CimInstance $Config -Property @{ EnableTenbit = $true } -PassThru
             $Config = Get-CxDriverConfig $Device.InstanceName
+            $Device.RestoreTenbit = $true # the driver setting is persistent, switch it back when done
         }
 
         if ($Config.EnableTenbit -and -not $Tenbit) {
@@ -832,6 +834,17 @@ finally {
     }
     catch {
         $CxCaptureServer.ForceStopCapture()
+    }
+
+    ForEach ($Device in $CxDevices) {
+        if ($Device.RestoreTenbit) {
+            try {
+                Write-Host ("Restoring 8-bit mode on \\.\cxadc{0}" -f $Device.Index)
+                $null = Set-CimInstance -CimInstance (Get-CxDriverConfig $Device.InstanceName) -Property @{ EnableTenbit = $false } -PassThru
+            } catch {
+                Write-Warning ("unable to restore 8-bit mode on \\.\cxadc{0}: {1}" -f $Device.Index, $_)
+            }
+        }
     }
 
     Write-Host "Files created:"

@@ -85,7 +85,7 @@ function Get-CxadcWinDevice {
         $Devices += [CxDevice]@{
             Path = $DevicePath.Path
             InstanceName = $DevicePath.InstanceName
-            Location = ("{0:d2}:{1:d2}.{2:d1}" -f $Hw.PciBusNumber, (($Hw.PciBusAddress -shr 16) -band 0x0000FFFF), ($Hw.PciBusAddress -band 0x0000FFFF))
+            Location = ("{0:d2}:{1:d2}.{2:d1}" -f $Hw.PciBusNumber, (($Hw.PciAddress -shr 16) -band 0x0000FFFF), ($Hw.PciAddress -band 0x0000FFFF))
         }
     }
     
